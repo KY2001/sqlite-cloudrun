@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+ nmbmfgn vcuse std::time::{Duration, Instant};
 
 use deadpool_sqlite::{Config, Hook, HookError, Pool, PoolError, Runtime};
 use openapi::{
@@ -6,6 +6,7 @@ use openapi::{
     types::Object,
 };
 use rusqlite::{
+    hooks::{AuthAction, AuthContext, Authorization},
     params_from_iter,
     types::{Value as SqlValue, ValueRef},
     Connection,
@@ -68,10 +69,17 @@ fn run_all(conn: &Connection, statements: &[Statement]) -> rusqlite::Result<Vec<
         return Ok(vec![run(conn, statement)?]);
     }
     conn.execute_batch("BEGIN IMMEDIATE")?;
+    // Reject BEGIN/COMMIT/ROLLBACK at prepare time so a statement can't end the transaction early.
+    conn.authorizer(Some(|ctx: AuthContext<'_>| match ctx.action {
+        AuthAction::Transaction { .. } => Authorization::Deny,
+        _ => Authorization::Allow,
+    }))?;
     let results = statements
         .iter()
         .map(|statement| run(conn, statement))
-        .collect::<rusqlite::Result<Vec<_>>>()?;
+        .collect::<rusqlite::Result<Vec<_>>>();
+    conn.authorizer(None::<fn(AuthContext<'_>) -> Authorization>)?;
+    let results = results?;
     conn.execute_batch("COMMIT")?;
     Ok(results)
 }
