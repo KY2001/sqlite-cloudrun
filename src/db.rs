@@ -1,9 +1,12 @@
+use std::time::{Duration, Instant};
+
 use deadpool_sqlite::{Config, Hook, HookError, Pool, PoolError, Runtime};
 use openapi::{models::Result as SqlResult, types::Object};
 use rusqlite::{fallible_iterator::FallibleIterator, types::ValueRef, Batch, Connection};
 use serde_json::Value;
 
 const POOL_SIZE: usize = 30;
+const QUERY_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub async fn open(path: &str) -> Pool {
     let pool = Config::new(path)
@@ -29,12 +32,14 @@ pub async fn open(path: &str) -> Pool {
     pool
 }
 
-// The outer error means no connection was available; the inner one is an SQL error.
 pub async fn execute(pool: &Pool, sql: String) -> Result<rusqlite::Result<SqlResult>, PoolError> {
     let conn = pool.get().await?;
-    Ok(conn
-        .interact(move |conn| {
+    let task = tokio::spawn(async move {
+        conn.interact(move |conn| {
+            let deadline = Instant::now() + QUERY_TIMEOUT;
+            conn.progress_handler(1000, Some(move || Instant::now() > deadline))?;
             let result = run(conn, &sql);
+            conn.progress_handler(0, None::<fn() -> bool>)?;
             // Don't hand a connection with an open transaction to the next request.
             if !conn.is_autocommit() {
                 let _ = conn.execute_batch("ROLLBACK");
@@ -42,7 +47,8 @@ pub async fn execute(pool: &Pool, sql: String) -> Result<rusqlite::Result<SqlRes
             result
         })
         .await
-        .unwrap())
+    });
+    Ok(task.await.unwrap().unwrap())
 }
 
 fn run(conn: &Connection, sql: &str) -> rusqlite::Result<SqlResult> {

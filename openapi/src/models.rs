@@ -66,132 +66,10 @@ pub fn check_xss_map<T>(v: &std::collections::HashMap<String, T>) -> std::result
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
 #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
-pub struct Error {
-    #[serde(rename = "error")]
-          #[validate(custom(function = "check_xss_string"))]
-    pub error: String,
-
-}
-
-
-
-impl Error {
-    #[allow(clippy::new_without_default, clippy::too_many_arguments)]
-    pub fn new(error: String, ) -> Error {
-        Error {
- error,
-        }
-    }
-}
-
-/// Converts the Error value to the Query Parameters representation (style=form, explode=false)
-/// specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde serializer
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let params: Vec<Option<String>> = vec![
-
-            Some("error".to_string()),
-            Some(self.error.to_string()),
-
-        ];
-
-        write!(f, "{}", params.into_iter().flatten().collect::<Vec<_>>().join(","))
-    }
-}
-
-/// Converts Query Parameters representation (style=form, explode=false) to a Error value
-/// as specified in https://swagger.io/docs/specification/serialization/
-/// Should be implemented in a serde deserializer
-impl std::str::FromStr for Error {
-    type Err = String;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        /// An intermediate representation of the struct to use for parsing.
-        #[derive(Default)]
-        #[allow(dead_code)]
-        struct IntermediateRep {
-            pub error: Vec<String>,
-        }
-
-        let mut intermediate_rep = IntermediateRep::default();
-
-        // Parse into intermediate representation
-        let mut string_iter = s.split(',');
-        let mut key_result = string_iter.next();
-
-        while key_result.is_some() {
-            let val = match string_iter.next() {
-                Some(x) => x,
-                None => return std::result::Result::Err("Missing value while parsing Error".to_string())
-            };
-
-            if let Some(key) = key_result {
-                #[allow(clippy::match_single_binding)]
-                match key {
-                    #[allow(clippy::redundant_clone)]
-                    "error" => intermediate_rep.error.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    _ => return std::result::Result::Err("Unexpected key while parsing Error".to_string())
-                }
-            }
-
-            // Get the next key
-            key_result = string_iter.next();
-        }
-
-        // Use the intermediate representation to return the struct
-        std::result::Result::Ok(Error {
-            error: intermediate_rep.error.into_iter().next().ok_or_else(|| "error missing in Error".to_string())?,
-        })
-    }
-}
-
-// Methods for converting between header::IntoHeaderValue<Error> and HeaderValue
-
-#[cfg(feature = "server")]
-impl std::convert::TryFrom<header::IntoHeaderValue<Error>> for HeaderValue {
-    type Error = String;
-
-    fn try_from(hdr_value: header::IntoHeaderValue<Error>) -> std::result::Result<Self, Self::Error> {
-        let hdr_value = hdr_value.to_string();
-        match HeaderValue::from_str(&hdr_value) {
-             std::result::Result::Ok(value) => std::result::Result::Ok(value),
-             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Invalid header value for Error - value: {hdr_value} is invalid {e}"#))
-        }
-    }
-}
-
-#[cfg(feature = "server")]
-impl std::convert::TryFrom<HeaderValue> for header::IntoHeaderValue<Error> {
-    type Error = String;
-
-    fn try_from(hdr_value: HeaderValue) -> std::result::Result<Self, Self::Error> {
-        match hdr_value.to_str() {
-             std::result::Result::Ok(value) => {
-                    match <Error as std::str::FromStr>::from_str(value) {
-                        std::result::Result::Ok(value) => std::result::Result::Ok(header::IntoHeaderValue(value)),
-                        std::result::Result::Err(err) => std::result::Result::Err(format!(r#"Unable to convert header value '{value}' into Error - {err}"#))
-                    }
-             },
-             std::result::Result::Err(e) => std::result::Result::Err(format!(r#"Unable to convert header: {hdr_value:?} to string: {e}"#))
-        }
-    }
-}
-
-
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
-#[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
 pub struct ErrorResponse {
     /// HTTP status code.
     #[serde(rename = "statusCode")]
     pub status_code: i32,
-
-    /// Short error code or identifier.
-    #[serde(rename = "title")]
-          #[validate(custom(function = "check_xss_string"))]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub title: Option<String>,
 
     /// Human-readable error message.
     #[serde(rename = "message")]
@@ -207,7 +85,6 @@ impl ErrorResponse {
     pub fn new(status_code: i32, message: String, ) -> ErrorResponse {
         ErrorResponse {
  status_code,
- title: None,
  message,
         }
     }
@@ -222,14 +99,6 @@ impl std::fmt::Display for ErrorResponse {
 
             Some("statusCode".to_string()),
             Some(self.status_code.to_string()),
-
-
-            self.title.as_ref().map(|title| {
-                [
-                    "title".to_string(),
-                    title.to_string(),
-                ].join(",")
-            }),
 
 
             Some("message".to_string()),
@@ -253,7 +122,6 @@ impl std::str::FromStr for ErrorResponse {
         #[allow(dead_code)]
         struct IntermediateRep {
             pub status_code: Vec<i32>,
-            pub title: Vec<String>,
             pub message: Vec<String>,
         }
 
@@ -275,8 +143,6 @@ impl std::str::FromStr for ErrorResponse {
                     #[allow(clippy::redundant_clone)]
                     "statusCode" => intermediate_rep.status_code.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "title" => intermediate_rep.title.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    #[allow(clippy::redundant_clone)]
                     "message" => intermediate_rep.message.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     _ => return std::result::Result::Err("Unexpected key while parsing ErrorResponse".to_string())
                 }
@@ -289,7 +155,6 @@ impl std::str::FromStr for ErrorResponse {
         // Use the intermediate representation to return the struct
         std::result::Result::Ok(ErrorResponse {
             status_code: intermediate_rep.status_code.into_iter().next().ok_or_else(|| "statusCode missing in ErrorResponse".to_string())?,
-            title: intermediate_rep.title.into_iter().next(),
             message: intermediate_rep.message.into_iter().next().ok_or_else(|| "message missing in ErrorResponse".to_string())?,
         })
     }

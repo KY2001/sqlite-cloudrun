@@ -33,7 +33,10 @@ paths:
   /sql:
     post:
       operationId: executeSql
-      description: Executes the SQL in the request body and returns the result rows.
+      description: |
+        Executes the SQL in the request body and returns the result rows. A query running longer
+        than 30 seconds is interrupted with a 400. A 503 is returned if no database connection
+        becomes available within 5 seconds.
       requestBody:
         required: true
         content:
@@ -58,12 +61,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                statusCode: 400
+                message: "no such table: users"
         "503":
           description: No database connection available
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                statusCode: 503
+                message: Timeout occurred while waiting for a slot to become available
   /sync:
     post:
       operationId: syncReplica
@@ -100,27 +109,13 @@ components:
           type: integer
           format: int64
           description: Rows inserted, updated or deleted by the request.
-    Error:
-      type: object
-      required: [error]
-      properties:
-        error:
-          type: string
     ErrorResponse:
       type: object
-      required:
-        - statusCode
-        - message
+      required: [statusCode, message]
       properties:
         statusCode:
           type: integer
-          example: 401
           description: HTTP status code.
-        title:
-          type: string
-          example: Unauthorized
-          description: Short error code or identifier.
         message:
           type: string
-          example: Invalid credentials. Please check and try again.
           description: Human-readable error message.
