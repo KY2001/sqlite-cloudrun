@@ -18,5 +18,4 @@ COPY --from=build --chown=65532:65532 /data /data
 COPY litestream.yaml /etc/litestream.yml
 ENV LITESTREAM_SOCKET=/tmp/litestream.sock
 
-# The server stops the old revision, restores from GCS, then starts `litestream replicate` itself.
 ENTRYPOINT ["/usr/local/bin/sqlite-cloudrun"]
