@@ -6,6 +6,7 @@ FROM rust:1.98.1-slim-bookworm AS build
 WORKDIR /build
 RUN mkdir /data
 COPY Cargo.toml Cargo.lock ./
+COPY openapi ./openapi
 COPY src ./src
 RUN cargo build --release --locked
 

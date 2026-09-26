@@ -9,4 +9,4 @@ curl -X POST --data-binary "SELECT 1 AS x" $URL/sql
 curl -X POST $URL/sync   # 204 once all changes are in GCS
 ```
 
-See [openapi.yaml](openapi.yaml) for the API.
+See [openapi/openapi.yaml](openapi/openapi.yaml) for the API.

@@ -52,8 +52,14 @@ paths:
                 columns: [id, name]
                 rows: [[1, alice]]
                 changes: 0
-        default:
-          description: unexpected error
+        "400":
+          description: SQL error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: No database connection available
           content:
             application/json:
               schema:
@@ -68,17 +74,14 @@ paths:
       responses:
         "204":
           description: All changes are replicated
-        default:
-          description: unexpected error
+        "500":
+          description: Litestream sync failed
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
-    Value:
-      description: A SQLite value. BLOBs are returned as lowercase hex strings.
-      type: [integer, number, string, "null"]
     Result:
       type: object
       required: [columns, rows, changes]
@@ -92,9 +95,10 @@ components:
           items:
             type: array
             items:
-              $ref: "#/components/schemas/Value"
+              description: A SQLite value (integer, number, string or null). BLOBs are returned as lowercase hex strings.
         changes:
           type: integer
+          format: int64
           description: Rows inserted, updated or deleted by the request.
     Error:
       type: object
