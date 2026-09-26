@@ -1,0 +1,122 @@
+openapi: 3.1.0
+info:
+  title: SQL over HTTP
+  version: 0.1.0
+  description: Executes raw SQL against a SQLite database replicated to GCS with Litestream.
+paths:
+  /health:
+    get:
+      operationId: health
+      summary: Check Litestream daemon responsiveness
+      description: Queries the Litestream control socket with a three-second deadline.
+      responses:
+        "200":
+          description: Litestream daemon is responsive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  litestream:
+                    type: string
+                    const: healthy
+        "503":
+          description: Litestream daemon is unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  litestream:
+                    type: string
+                    const: unavailable
+  /sql:
+    post:
+      operationId: executeSql
+      description: Executes the SQL in the request body and returns the result rows.
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: SELECT id, name FROM users WHERE id = 1
+      responses:
+        "200":
+          description: Statement executed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Result"
+              example:
+                columns: [id, name]
+                rows: [[1, alice]]
+                changes: 0
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /sync:
+    post:
+      operationId: syncReplica
+      summary: Replicate to GCS
+      description: |
+        Pushes pending changes to GCS with `litestream sync -wait`. With request-based billing the
+        instance has no CPU between requests, so call this periodically (e.g. from Cloud Scheduler).
+      responses:
+        "204":
+          description: All changes are replicated
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    Value:
+      description: A SQLite value. BLOBs are returned as lowercase hex strings.
+      type: [integer, number, string, "null"]
+    Result:
+      type: object
+      required: [columns, rows, changes]
+      properties:
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: array
+            items:
+              $ref: "#/components/schemas/Value"
+        changes:
+          type: integer
+          description: Rows inserted, updated or deleted by the request.
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    ErrorResponse:
+      type: object
+      required:
+        - statusCode
+        - message
+      properties:
+        statusCode:
+          type: integer
+          example: 401
+          description: HTTP status code.
+        title:
+          type: string
+          example: Unauthorized
+          description: Short error code or identifier.
+        message:
+          type: string
+          example: Invalid credentials. Please check and try again.
+          description: Human-readable error message.
