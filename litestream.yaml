@@ -1,0 +1,8 @@
+dbs:
+  - path: /data/app.db
+    replica:
+      url: gs://${GCS_BUCKET}/app.db
+
+socket:
+  enabled: true
+  path: ${LITESTREAM_SOCKET}
