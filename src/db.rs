@@ -107,7 +107,11 @@ fn run(conn: &Connection, statement: &Statement) -> rusqlite::Result<SqlResult> 
         columns,
         types,
         rows,
-        (conn.total_changes() - before) as i64,
+        if conn.total_changes() == before {
+            0
+        } else {
+            conn.changes() as i64
+        },
     ))
 }
 
