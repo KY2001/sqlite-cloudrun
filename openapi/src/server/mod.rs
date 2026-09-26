@@ -19,7 +19,7 @@ where
     I: AsRef<A> + Clone + Send + Sync + 'static,
     A: apis::default::Default<E> + Send + Sync + 'static,
     E: std::fmt::Debug + Send + Sync + 'static,
-
+    
 {
     // build our application with a route
     Router::new()
@@ -99,7 +99,7 @@ where
 
 
 let result = api_impl.as_ref().execute_sql(
-
+      
       &method,
       &host,
       &cookies,
@@ -220,7 +220,7 @@ where
 
 
 let result = api_impl.as_ref().health(
-
+      
       &method,
       &host,
       &cookies,
@@ -303,7 +303,7 @@ where
 
 
 let result = api_impl.as_ref().stop(
-
+      
       &method,
       &host,
       &cookies,
@@ -398,7 +398,7 @@ where
 
 
 let result = api_impl.as_ref().sync_replica(
-
+      
       &method,
       &host,
       &cookies,

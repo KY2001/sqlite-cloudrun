@@ -76,7 +76,7 @@ pub trait Default<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::Error
     /// ExecuteSql - POST /sql
     async fn execute_sql(
     &self,
-
+    
     method: &Method,
     host: &Host,
     cookies: &CookieJar,
@@ -88,7 +88,7 @@ pub trait Default<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::Error
     /// Health - GET /health
     async fn health(
     &self,
-
+    
     method: &Method,
     host: &Host,
     cookies: &CookieJar,
@@ -97,7 +97,7 @@ pub trait Default<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::Error
     /// Stop - POST /stop
     async fn stop(
     &self,
-
+    
     method: &Method,
     host: &Host,
     cookies: &CookieJar,
@@ -109,7 +109,7 @@ pub trait Default<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::Error
     /// SyncReplica - POST /sync
     async fn sync_replica(
     &self,
-
+    
     method: &Method,
     host: &Host,
     cookies: &CookieJar,
