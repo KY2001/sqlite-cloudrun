@@ -23,5 +23,20 @@ async fn main() {
         .await
         .unwrap();
     println!("listening on :{port}, database {path}");
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(sigterm())
+        .await
+        .unwrap();
+
+    // Cloud Run sends SIGTERM before stopping the instance; push pending changes to GCS.
+    if let Err(e) = litestream::sync(&path).await {
+        eprintln!("litestream sync on shutdown: {e}");
+    }
+}
+
+async fn sigterm() {
+    tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        .unwrap()
+        .recv()
+        .await;
 }
