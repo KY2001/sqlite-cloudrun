@@ -38,17 +38,22 @@ where
     #[derive(validator::Validate)]
     #[allow(dead_code)]
     struct ExecuteSqlBodyValidator<'a> {
-          body: &'a String,
+          #[validate(
+                  length(min = 1),
+              )]
+          body: &'a Vec<models::Statement>,
     }
 
 
 #[tracing::instrument(skip_all)]
 fn execute_sql_validation(
-        body: String,
+        body: Vec<models::Statement>,
 ) -> std::result::Result<(
-        String,
+        Vec<models::Statement>,
 ), ValidationErrors>
 {
+              let b = ExecuteSqlBodyValidator { body: &body };
+              b.validate()?;
 
 Ok((
     body,
@@ -61,7 +66,7 @@ async fn execute_sql<I, A, E>(
   host: Host,
   cookies: CookieJar,
  State(api_impl): State<I>,
-          body: String,
+          Json(body): Json<Vec<models::Statement>>,
 ) -> Result<Response, StatusCode>
 where
     I: AsRef<A> + Send + Sync,
@@ -102,7 +107,7 @@ let result = api_impl.as_ref().execute_sql(
 
   let resp = match result {
                                             Ok(rsp) => match rsp {
-                                                apis::default::ExecuteSqlResponse::Status200_StatementExecuted
+                                                apis::default::ExecuteSqlResponse::Status200_StatementsExecuted
                                                     (body)
                                                 => {
                                                   let mut response = response.status(200);
@@ -222,41 +227,15 @@ let result = api_impl.as_ref().health(
 
   let resp = match result {
                                             Ok(rsp) => match rsp {
-                                                apis::default::HealthResponse::Status200_LitestreamDaemonIsResponsive
-                                                    (body)
+                                                apis::default::HealthResponse::Status204_LitestreamAndTheDatabaseAreResponsive
                                                 => {
-                                                  let mut response = response.status(200);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
+                                                  let mut response = response.status(204);
+                                                  response.body(Body::empty())
                                                 },
-                                                apis::default::HealthResponse::Status503_LitestreamDaemonIsUnavailable
-                                                    (body)
+                                                apis::default::HealthResponse::Status503_LitestreamOrTheDatabaseIsUnavailable
                                                 => {
                                                   let mut response = response.status(503);
-                                                  {
-                                                    let mut response_headers = response.headers_mut().unwrap();
-                                                    response_headers.insert(
-                                                        CONTENT_TYPE,
-                                                        HeaderValue::from_static("application/json"));
-                                                  }
-
-                                                  let body_content =  tokio::task::spawn_blocking(move ||
-                                                      serde_json::to_vec(&body).map_err(|e| {
-                                                        error!(error = ?e);
-                                                        StatusCode::INTERNAL_SERVER_ERROR
-                                                      })).await.unwrap()?;
-                                                  response.body(Body::from(body_content))
+                                                  response.body(Body::empty())
                                                 },
                                             },
                                             Err(why) => {

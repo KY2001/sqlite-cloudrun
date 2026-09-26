@@ -8,6 +8,9 @@ use axum::{
 };
 use serde_json::json;
 
+// Request bodies can hold user data and large source code, so only log the start of them.
+const MAX_LOGGED_BODY_BYTES: usize = 4096;
+
 pub async fn log_request(request: Request, next: Next) -> Response {
     let start = Instant::now();
     let method = request.method().clone();
@@ -17,7 +20,7 @@ pub async fn log_request(request: Request, next: Next) -> Response {
     let (request_body, response) =
         match Bytes::from_request(Request::from_parts(parts.clone(), body), &()).await {
             Ok(body) => {
-                let request_body = String::from_utf8_lossy(&body).into_owned();
+                let request_body = truncate(&String::from_utf8_lossy(&body));
                 let request = Request::from_parts(parts, Body::from(body));
                 (Some(request_body), next.run(request).await)
             }
@@ -46,4 +49,12 @@ pub async fn log_request(request: Request, next: Next) -> Response {
     );
 
     response
+}
+
+fn truncate(body: &str) -> String {
+    if body.len() <= MAX_LOGGED_BODY_BYTES {
+        return body.to_string();
+    }
+    let end = body.floor_char_boundary(MAX_LOGGED_BODY_BYTES);
+    format!("{}... ({} bytes truncated)", &body[..end], body.len() - end)
 }

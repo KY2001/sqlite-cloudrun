@@ -11,9 +11,9 @@ use crate::{models, types::*};
 #[must_use]
 #[allow(clippy::large_enum_variant)]
 pub enum ExecuteSqlResponse {
-    /// Statement executed
-    Status200_StatementExecuted
-    (models::Result)
+    /// Statements executed
+    Status200_StatementsExecuted
+    (Vec<models::Result>)
     ,
     /// SQL error
     Status400_SQLError
@@ -28,13 +28,11 @@ pub enum ExecuteSqlResponse {
 #[must_use]
 #[allow(clippy::large_enum_variant)]
 pub enum HealthResponse {
-    /// Litestream daemon is responsive
-    Status200_LitestreamDaemonIsResponsive
-    (models::Health200Response)
+    /// Litestream and the database are responsive
+    Status204_LitestreamAndTheDatabaseAreResponsive
     ,
-    /// Litestream daemon is unavailable
-    Status503_LitestreamDaemonIsUnavailable
-    (models::Health503Response)
+    /// Litestream or the database is unavailable
+    Status503_LitestreamOrTheDatabaseIsUnavailable
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -63,10 +61,10 @@ pub trait Default<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::Error
     method: &Method,
     host: &Host,
     cookies: &CookieJar,
-            body: &String,
+            body: &Vec<models::Statement>,
     ) -> Result<ExecuteSqlResponse, E>;
 
-    /// Check Litestream daemon responsiveness.
+    /// Check Litestream and database responsiveness.
     ///
     /// Health - GET /health
     async fn health(

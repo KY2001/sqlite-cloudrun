@@ -10,6 +10,7 @@ use openapi::apis::{
     default::{Default, ExecuteSqlResponse, HealthResponse, SyncReplicaResponse},
     ErrorHandler,
 };
+use openapi::models::Statement;
 
 pub struct Server {
     pub path: String,
@@ -31,7 +32,7 @@ impl Default for Server {
         _method: &Method,
         _host: &Host,
         _cookies: &CookieJar,
-        body: &String,
+        body: &Vec<Statement>,
     ) -> Result<ExecuteSqlResponse, ()> {
         Ok(execute_sql::execute_sql(&self.pool, body.clone()).await)
     }
@@ -42,7 +43,7 @@ impl Default for Server {
         _host: &Host,
         _cookies: &CookieJar,
     ) -> Result<HealthResponse, ()> {
-        Ok(health::health().await)
+        Ok(health::health(&self.pool).await)
     }
 
     async fn sync_replica(
