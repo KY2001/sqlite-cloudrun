@@ -1,10 +1,12 @@
 mod health;
+mod logger;
 
 use std::sync::Arc;
 
 use axum::{
     extract::State,
     http::StatusCode,
+    middleware,
     routing::{get, post},
     Json, Router,
 };
@@ -29,6 +31,7 @@ async fn main() {
         .route("/health", get(health::health))
         .route("/sql", post(sql))
         .route("/sync", post(sync))
+        .layer(middleware::from_fn(logger::log_request))
         .with_state(Arc::new(path.clone()));
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
