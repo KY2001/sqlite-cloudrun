@@ -10,6 +10,7 @@ pub async fn stop_serving_revision() {
     };
     let result = reqwest::Client::new()
         .post(format!("https://{endpoint}/stop?revision={revision}"))
+        .header(reqwest::header::CONTENT_LENGTH, 0)
         .timeout(STOP_TIMEOUT)
         .send()
         .await
