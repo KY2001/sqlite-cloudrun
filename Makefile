@@ -16,7 +16,7 @@ gen:
 	rm -rf openapi/src
 	docker run --rm --user $(shell id -u):$(shell id -g) --volume $(CURDIR):/local \
 		openapitools/openapi-generator-cli:v7.16.0 generate -i /local/openapi/openapi.yaml -g rust-axum \
-		-o /local/openapi --additional-properties=packageName=openapi
+		-o /local/openapi --additional-properties=packageName=openapi,hideGenerationTimestamp=true
 
 .PHONY: build
 build:
@@ -37,7 +37,7 @@ lint-fix: format
 	cargo clippy --fix --allow-dirty --allow-staged
 
 .PHONY: all
-all: gen lint-fix lint
+all: gen lint-fix lint build
 
 .PHONY: upgrade-packages
 upgrade-packages:
