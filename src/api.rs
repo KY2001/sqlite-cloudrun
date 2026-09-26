@@ -30,16 +30,17 @@ impl Server {
     // Pushes pending changes to GCS, then closes SQLite and stops Litestream.
     pub async fn stop(&self) -> Result<(), String> {
         let mut db = self.db.write().await;
-        let Some(Database { pool, litestream }) = db.take() else {
+        if db.is_none() {
             return Ok(());
-        };
-        let result = litestream::sync(&self.path).await;
+        }
+        litestream::sync(&self.path).await?;
+        let Database { pool, litestream } = db.take().unwrap();
         pool.close();
         if let Some(mut litestream) = litestream {
             let _ = litestream.kill().await;
         }
         println!("database handed off");
-        result
+        Ok(())
     }
 }
 
