@@ -1,5 +1,32 @@
 use std::time::Duration;
 
+use tokio::process::{Child, Command};
+
+// Restores the database from GCS, if a replica exists.
+pub async fn restore(path: &str) {
+    if std::env::var("LITESTREAM_SOCKET").is_err() {
+        return; // Not running under Litestream (e.g. `make run`).
+    }
+    let status = Command::new("litestream")
+        .args(["restore", "-if-db-not-exists", "-if-replica-exists", path])
+        .status()
+        .await
+        .expect("run litestream restore");
+    assert!(status.success(), "litestream restore: {status}");
+}
+
+// Starts replicating the database to GCS. Kill the returned process to stop replication.
+pub fn replicate() -> Option<Child> {
+    std::env::var("LITESTREAM_SOCKET").ok()?;
+    Some(
+        Command::new("litestream")
+            .arg("replicate")
+            .kill_on_drop(true)
+            .spawn()
+            .expect("start litestream replicate"),
+    )
+}
+
 // Queries the Litestream control socket with a three-second deadline.
 pub async fn healthy() -> bool {
     let Ok(socket) = std::env::var("LITESTREAM_SOCKET") else {
@@ -8,7 +35,7 @@ pub async fn healthy() -> bool {
 
     let output = tokio::time::timeout(
         Duration::from_secs(3),
-        tokio::process::Command::new("litestream")
+        Command::new("litestream")
             .args(["info", "-socket", &socket, "-timeout", "2"])
             .kill_on_drop(true)
             .output(),
@@ -18,14 +45,12 @@ pub async fn healthy() -> bool {
     matches!(output, Ok(Ok(output)) if output.status.success())
 }
 
-// With request-based billing the instance has no CPU between requests, so Litestream's
-// background replication may stall. Call this periodically (e.g. from Cloud Scheduler) to
-// push pending changes to GCS.
+// An uptime check calls /sync every five minutes to push pending changes to GCS.
 pub async fn sync(path: &str) -> Result<(), String> {
     let Ok(socket) = std::env::var("LITESTREAM_SOCKET") else {
         return Ok(()); // Not running under Litestream (e.g. `make run`).
     };
-    let output = tokio::process::Command::new("litestream")
+    let output = Command::new("litestream")
         .args(["sync", "-wait", "-socket", &socket, path])
         .output()
         .await

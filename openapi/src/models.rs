@@ -62,6 +62,15 @@ pub fn check_xss_map<T>(v: &std::collections::HashMap<String, T>) -> std::result
 
 
 
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+    #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+    pub struct StopQueryParams {
+            /// The caller's revision. An instance doesn't stop on behalf of its own revision.
+                #[serde(rename = "revision")]
+                    pub revision: String,
+    }
+
+
 
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]

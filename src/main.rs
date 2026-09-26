@@ -1,23 +1,30 @@
 mod api;
 mod db;
+mod handoff;
 mod litestream;
 mod logger;
 
 use std::sync::Arc;
 
 use axum::middleware;
+use tokio::sync::RwLock;
 
 #[tokio::main]
 async fn main() {
     let path = std::env::var("DB_PATH").unwrap_or_else(|_| "/data/app.db".into());
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".into());
 
-    let server = api::Server {
-        pool: db::open(&path).await,
+    // Take the database over from the old revision before restoring it, so no changes are lost and only one instance replicates to GCS.
+    handoff::stop_serving_revision().await;
+    litestream::restore(&path).await;
+    let server = Arc::new(api::Server {
+        db: RwLock::new(Some(api::Database {
+            pool: db::open(&path).await,
+            litestream: litestream::replicate(),
+        })),
         path: path.clone(),
-    };
-    let app =
-        openapi::server::new(Arc::new(server)).layer(middleware::from_fn(logger::log_request));
+    });
+    let app = openapi::server::new(server.clone()).layer(middleware::from_fn(logger::log_request));
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
@@ -29,7 +36,7 @@ async fn main() {
         .unwrap();
 
     // Cloud Run sends SIGTERM before stopping the instance; push pending changes to GCS.
-    if let Err(e) = litestream::sync(&path).await {
+    if let Err(e) = server.stop().await {
         eprintln!("litestream sync on shutdown: {e}");
     }
 }

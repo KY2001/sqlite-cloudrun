@@ -25,11 +25,13 @@ build:
 .PHONY: format
 format:
 	cargo fmt
+	terraform fmt -recursive terraform/
 
 .PHONY: lint
 lint:
 	cargo fmt --check
 	cargo clippy --all-targets -- -D warnings
+	tflint --chdir=terraform/ --recursive
 	docker run --rm -i hadolint/hadolint < Dockerfile
 
 .PHONY: lint-fix
@@ -70,9 +72,4 @@ gcloud-build-and-push:
 
 .PHONY: gcloud-deploy
 gcloud-deploy:
-	gcloud run deploy $(SERVER_NAME) --project=$(SERVER_PROJECT_ID) --region=$(GCP_REGION) \
-		--image=$(IMAGE):$(SERVER_ENV)-latest \
-		--service-account=$(SERVER_NAME)@$(SERVER_PROJECT_ID).iam.gserviceaccount.com \
-		--set-env-vars=GCS_BUCKET=$(GCS_BUCKET) \
-		--max=1 --max-instances=1 --min=0 --concurrency=80 --cpu=1 --memory=512Mi \
-		--timeout=60 --cpu-throttling
+	gcloud beta run services update $(SERVER_NAME) --project=$(SERVER_PROJECT_ID) --region=$(GCP_REGION) --image=$(IMAGE):$(SERVER_ENV)-$(GIT_SHA)
