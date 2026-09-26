@@ -42,8 +42,7 @@ pub async fn log_request(request: Request, next: Next) -> Response {
             "uri": uri,
             "request_body": request_body,
             "status": status,
-            "latency": latency.as_nanos(),
-            "latency_human": format!("{latency:?}"),
+            "latency": format!("{latency:?}"),
             "severity": severity,
         })
     );
