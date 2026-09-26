@@ -13,7 +13,7 @@ use rusqlite::{
 };
 use serde_json::Value;
 
-const POOL_SIZE: usize = 30;
+const POOL_SIZE: usize = 100;
 const QUERY_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub async fn open(path: &str) -> Pool {
