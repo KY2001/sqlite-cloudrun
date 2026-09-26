@@ -11,4 +11,4 @@ deadpool-sqlite = "0.14"
 openapi = { path = "openapi" }
 rusqlite = { version = "0.40", features = ["bundled", "column_decltype", "hooks"] }
 serde_json = "1"
-tokio = { version = "1", features = ["macros", "process", "rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["macros", "process", "rt-multi-thread", "signal", "time"] }
