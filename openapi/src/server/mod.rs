@@ -29,6 +29,9 @@ where
         .route("/sql",
             post(execute_sql::<I, A, E>)
         )
+        .route("/stop",
+            post(stop::<I, A, E>)
+        )
         .route("/sync",
             post(sync_replica::<I, A, E>)
         )
@@ -251,6 +254,108 @@ let result = api_impl.as_ref().health(
 
 
 #[tracing::instrument(skip_all)]
+fn stop_validation(
+  query_params: models::StopQueryParams,
+) -> std::result::Result<(
+  models::StopQueryParams,
+), ValidationErrors>
+{
+  query_params.validate()?;
+
+Ok((
+  query_params,
+))
+}
+/// Stop - POST /stop
+#[tracing::instrument(skip_all)]
+async fn stop<I, A, E>(
+  method: Method,
+  host: Host,
+  cookies: CookieJar,
+  QueryExtra(query_params): QueryExtra<models::StopQueryParams>,
+ State(api_impl): State<I>,
+) -> Result<Response, StatusCode>
+where
+    I: AsRef<A> + Send + Sync,
+    A: apis::default::Default<E> + Send + Sync,
+    E: std::fmt::Debug + Send + Sync + 'static,
+        {
+
+
+
+
+      #[allow(clippy::redundant_closure)]
+      let validation = tokio::task::spawn_blocking(move ||
+    stop_validation(
+        query_params,
+    )
+  ).await.unwrap();
+
+  let Ok((
+    query_params,
+  )) = validation else {
+    return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST);
+  };
+
+
+
+let result = api_impl.as_ref().stop(
+      
+      &method,
+      &host,
+      &cookies,
+        &query_params,
+  ).await;
+
+  let mut response = Response::builder();
+
+  let resp = match result {
+                                            Ok(rsp) => match rsp {
+                                                apis::default::StopResponse::Status204_TheDatabaseWasHandedOff
+                                                => {
+                                                  let mut response = response.status(204);
+                                                  response.body(Body::empty())
+                                                },
+                                                apis::default::StopResponse::Status409_TheCallerIsThisRevision
+                                                => {
+                                                  let mut response = response.status(409);
+                                                  response.body(Body::empty())
+                                                },
+                                                apis::default::StopResponse::Status500_LitestreamSyncFailed
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(500);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                            },
+                                            Err(why) => {
+                                                    // Application code returned an error. This should not happen, as the implementation should
+                                                    // return a valid response.
+                                                    return api_impl.as_ref().handle_error(&method, &host, &cookies, why).await;
+                                            },
+                                        };
+
+
+                                        resp.map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })
+}
+
+
+#[tracing::instrument(skip_all)]
 fn sync_replica_validation(
 ) -> std::result::Result<(
 ), ValidationErrors>
@@ -312,6 +417,24 @@ let result = api_impl.as_ref().sync_replica(
                                                     (body)
                                                 => {
                                                   let mut response = response.status(500);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_static("application/json"));
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                                apis::default::SyncReplicaResponse::Status503_TheDatabaseWasHandedOffToANewRevision
+                                                    (body)
+                                                => {
+                                                  let mut response = response.status(503);
                                                   {
                                                     let mut response_headers = response.headers_mut().unwrap();
                                                     response_headers.insert(

@@ -9,4 +9,6 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache: false
+      - uses: terraform-linters/setup-tflint@v6
+      - run: tflint --chdir=terraform/ --init
       - run: make lint

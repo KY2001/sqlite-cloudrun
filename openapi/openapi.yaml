@@ -76,6 +76,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: The database was handed off to a new revision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /stop:
+    post:
+      operationId: stop
+      description: Hands the database off to a new revision.
+      parameters:
+        - name: revision
+          in: query
+          required: true
+          description: The caller's revision. An instance doesn't stop on behalf of its own revision.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: The database was handed off
+        "409":
+          description: The caller is this revision, so nothing was stopped
+        "500":
+          description: Litestream sync failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     Statement:

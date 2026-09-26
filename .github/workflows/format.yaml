@@ -9,6 +9,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           cache: false
+      - uses: hashicorp/setup-terraform@v4
       - run: make format
       - name: Check for diffs
         run: git diff --exit-code

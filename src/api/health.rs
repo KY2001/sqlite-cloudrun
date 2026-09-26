@@ -6,7 +6,10 @@ use openapi::{apis::default::HealthResponse, models::Statement};
 use crate::{db, litestream};
 
 // GET /health
-pub async fn health(pool: &Pool) -> HealthResponse {
+pub async fn health(pool: Option<&Pool>) -> HealthResponse {
+    let Some(pool) = pool else {
+        return HealthResponse::Status503_LitestreamOrTheDatabaseIsUnavailable;
+    };
     let (litestream, database) = tokio::join!(litestream::healthy(), database_healthy(pool));
     if litestream && database {
         HealthResponse::Status204_LitestreamAndTheDatabaseAreResponsive

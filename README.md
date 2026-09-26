@@ -15,6 +15,7 @@ An HTTP server that runs raw SQL against a SQLite database on Cloud Run.
 | --- | --- |
 | `POST /sql` | Runs statements in order and returns one result per statement. Two or more statements run in one transaction. |
 | `POST /sync` | Waits until all changes are replicated to GCS. |
+| `POST /stop` | Hands the database off to a new revision. Called by the new revision on startup. |
 | `GET /health` | Checks Litestream and the database. |
 
 ```sh
@@ -39,8 +40,11 @@ A request with two or more statements runs in a single `BEGIN IMMEDIATE` transac
 Yes. The service runs on a single instance (`--max-instances=1`), so every request sees the latest committed data.
 
 **Can I lose data?**
-A write is committed to the instance's in-memory filesystem, then replicated to GCS asynchronously.
-If the instance stops before replication, writes since the last sync (up to about a minute with the uptime check) can be lost.
+Basically No. On a normal shutdown, Cloud Run sends `SIGTERM` and the server syncs to GCS before exiting. Recent writes can be lost if the instance crashes.
 
 **Are there cold starts?**
-Rarely. Calling `/sync` every minute (see above) keeps the instance warm.
+Rarely. The uptime check calls `/sync` every five minutes, which keeps the instance warm.
+
+**What happens on deploy?**
+The new revision takes the database over before it starts serving. It calls `POST /stop`, which Cloud Run routes to the old revision; the old revision finishes in-flight queries, syncs to GCS and closes the database. The new revision then restores from GCS and starts serving.
+Requests during the handoff (a few seconds) get `503`; clients should retry.

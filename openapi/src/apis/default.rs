@@ -38,12 +38,31 @@ pub enum HealthResponse {
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
+pub enum StopResponse {
+    /// The database was handed off
+    Status204_TheDatabaseWasHandedOff
+    ,
+    /// The caller is this revision, so nothing was stopped
+    Status409_TheCallerIsThisRevision
+    ,
+    /// Litestream sync failed
+    Status500_LitestreamSyncFailed
+    (models::ErrorResponse)
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[must_use]
+#[allow(clippy::large_enum_variant)]
 pub enum SyncReplicaResponse {
     /// All changes are replicated
     Status204_AllChangesAreReplicated
     ,
     /// Litestream sync failed
     Status500_LitestreamSyncFailed
+    (models::ErrorResponse)
+    ,
+    /// The database was handed off to a new revision
+    Status503_TheDatabaseWasHandedOffToANewRevision
     (models::ErrorResponse)
 }
 
@@ -74,6 +93,16 @@ pub trait Default<E: std::fmt::Debug + Send + Sync + 'static = ()>: super::Error
     host: &Host,
     cookies: &CookieJar,
     ) -> Result<HealthResponse, E>;
+
+    /// Stop - POST /stop
+    async fn stop(
+    &self,
+    
+    method: &Method,
+    host: &Host,
+    cookies: &CookieJar,
+      query_params: &models::StopQueryParams,
+    ) -> Result<StopResponse, E>;
 
     /// Replicate to GCS.
     ///

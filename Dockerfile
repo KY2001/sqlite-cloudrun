@@ -18,4 +18,4 @@ COPY --from=build --chown=65532:65532 /data /data
 COPY litestream.yaml /etc/litestream.yml
 ENV LITESTREAM_SOCKET=/tmp/litestream.sock
 
-ENTRYPOINT ["litestream", "replicate", "-restore-if-db-not-exists", "-exec", "/usr/local/bin/sqlite-cloudrun"]
+ENTRYPOINT ["/usr/local/bin/sqlite-cloudrun"]
