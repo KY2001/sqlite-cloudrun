@@ -48,4 +48,4 @@ Rarely. The uptime check calls `/sync` every five minutes, which keeps the insta
 
 ### What happens on deploy?
 The new revision takes the database over before it starts serving. It calls `POST /stop`, which Cloud Run routes to the old revision; the old revision finishes in-flight queries, syncs to GCS and closes the database. The new revision then restores from GCS and starts serving.
-Requests during the handoff (a few seconds) get `503`; clients should retry.
+Requests during the handoff (3–10 seconds, see [benchmark](benchmark/README.md)) get `503`; clients should retry.
