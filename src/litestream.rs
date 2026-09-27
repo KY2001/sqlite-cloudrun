@@ -21,8 +21,6 @@ pub async fn restore(path: &str, stop: impl Future<Output = ()>) {
         .kill_on_drop(true)
         .spawn()
         .expect("start litestream restore -f");
-    // No timeout: if the restore is too slow, the startup probe fails this revision before it
-    // stops the old one, which keeps serving.
     catch_up(path, &mut follower, None).await;
 
     stop.await;
