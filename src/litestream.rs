@@ -6,7 +6,6 @@ use std::{
 use tokio::process::{Child, Command};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
-const RESTORE_TIMEOUT: Duration = Duration::from_secs(30);
 const CATCH_UP_TIMEOUT: Duration = Duration::from_secs(10);
 
 // Restores the database from GCS while the old revision still serves, then calls `stop` and
@@ -22,12 +21,14 @@ pub async fn restore(path: &str, stop: impl Future<Output = ()>) {
         .kill_on_drop(true)
         .spawn()
         .expect("start litestream restore -f");
-    catch_up(path, &mut follower, RESTORE_TIMEOUT).await;
+    // No timeout: if the restore is too slow, the startup probe fails this revision before it
+    // stops the old one, which keeps serving.
+    catch_up(path, &mut follower, None).await;
 
     stop.await;
 
     // The old revision has pushed its last changes, so only those are left to apply.
-    let caught_up = catch_up(path, &mut follower, CATCH_UP_TIMEOUT).await;
+    let caught_up = catch_up(path, &mut follower, Some(CATCH_UP_TIMEOUT)).await;
     let _ = follower.kill().await;
     if !caught_up {
         println!("follow restore did not catch up; restoring from scratch");
@@ -43,14 +44,16 @@ pub async fn restore(path: &str, stop: impl Future<Output = ()>) {
 }
 
 // Waits until `restore -f` has applied the latest TXID in GCS. Returns whether it has.
-async fn catch_up(path: &str, follower: &mut Child, timeout: Duration) -> bool {
-    let deadline = Instant::now() + timeout;
+async fn catch_up(path: &str, follower: &mut Child, timeout: Option<Duration>) -> bool {
+    let deadline = timeout.map(|timeout| Instant::now() + timeout);
     loop {
         let target = replica_txid(path).await;
         if target.is_some() && followed_txid(path) >= target {
             return true;
         }
-        if !follower.try_wait().is_ok_and(|status| status.is_none()) || Instant::now() > deadline {
+        if !follower.try_wait().is_ok_and(|status| status.is_none())
+            || deadline.is_some_and(|deadline| Instant::now() > deadline)
+        {
             return false;
         }
         tokio::time::sleep(POLL_INTERVAL).await;
