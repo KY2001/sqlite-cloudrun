@@ -3,6 +3,7 @@
 .env*
 credentials
 AGENTS.md
+__pycache__/
 **/.terraform/
 **/*.tfstate
 **/*.tfstate.backup
