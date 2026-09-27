@@ -31,20 +31,21 @@ See [openapi/openapi.yaml](openapi/openapi.yaml) for the full API.
 
 ## FAQ
 
-**How are transactions handled?**
+### How are transactions handled?
+
 A request with one statement runs in autocommit mode.
 A request with two or more statements runs in a single `BEGIN IMMEDIATE` transaction: all succeed or all are rolled back.
 `BEGIN`, `COMMIT` and `ROLLBACK` are not allowed inside such a request, and a transaction can't span requests.
 
-**Is it consistent?**
+### Is it consistent?
 Yes. The service runs on a single instance (`--max-instances=1`), so every request sees the latest committed data.
 
-**Can I lose data?**
+### Can I lose data?
 Basically No. On a normal shutdown, Cloud Run sends `SIGTERM` and the server syncs to GCS before exiting. Recent writes can be lost if the instance crashes.
 
-**Are there cold starts?**
+### Are there cold starts?
 Rarely. The uptime check calls `/sync` every five minutes, which keeps the instance warm.
 
-**What happens on deploy?**
+### What happens on deploy?
 The new revision takes the database over before it starts serving. It calls `POST /stop`, which Cloud Run routes to the old revision; the old revision finishes in-flight queries, syncs to GCS and closes the database. The new revision then restores from GCS and starts serving.
 Requests during the handoff (a few seconds) get `503`; clients should retry.
