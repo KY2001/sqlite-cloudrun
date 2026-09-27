@@ -56,10 +56,13 @@ Throughput levels off at 500–700 req/s from 10 clients on.
 
 A single client inserts one row after another while `make gcloud-deploy` rolls out a new revision.
 Downtime runs from the last successful write before the failures to the first successful write after them.
-Restore is measured from `stopped the serving revision` to `listening on` in the new revision's logs.
-Restore downloads the latest snapshot plus every LTX file written since, so its time depends on how much was written since the last snapshot:
+Stop → listening is measured from `stopped the serving revision` to `listening on` in the new revision's logs.
 
-| When | Files restored | Restore | Downtime |
-| --- | ---: | ---: | ---: |
-| Right after a snapshot | not counted | 2.2–2.7 s | 4.8–5.7 s |
-| After ~50,000 writes since the snapshot | 203 | 6.4–7.9 s | 8.7–9.5 s |
+| New revision | Stop → listening | Downtime |
+| --- | ---: | ---: |
+| Restores after `/stop`, right after a snapshot | 2.2–2.7 s | 4.8–5.7 s |
+| Restores after `/stop`, after ~50,000 writes since the snapshot | 6.4–7.9 s | 8.7–9.5 s |
+| Restores before `/stop`, then applies the delta (4 runs) | 0.38–0.41 s | 1.2–2.6 s |
+
+Restoring before `/stop` moves the 9–12 s restore out of the downtime; the rest of the downtime is Cloud Run shifting traffic.
+No acknowledged write was lost in any run.
