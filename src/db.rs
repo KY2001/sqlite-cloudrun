@@ -14,7 +14,7 @@ use rusqlite::{
 use serde_json::Value;
 
 const POOL_SIZE: usize = 100;
-const QUERY_TIMEOUT: Duration = Duration::from_secs(10);
+const QUERY_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub async fn open(path: &str) -> Pool {
     let pool = Config::new(path)
