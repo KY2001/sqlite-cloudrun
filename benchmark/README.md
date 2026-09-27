@@ -58,11 +58,10 @@ A single client inserts one row after another while `make gcloud-deploy` rolls o
 Downtime runs from the last successful write before the failures to the first successful write after them.
 Stop → listening is measured from `stopped the serving revision` to `listening on` in the new revision's logs.
 
-| New revision | Stop → listening | Downtime |
-| --- | ---: | ---: |
-| Restores after `/stop`, right after a snapshot | 2.2–2.7 s | 4.8–5.7 s |
-| Restores after `/stop`, after ~50,000 writes since the snapshot | 6.4–7.9 s | 8.7–9.5 s |
-| Restores before `/stop`, then applies the delta (4 runs) | 0.38–0.41 s | 1.2–2.6 s |
+| Run | Downtime | Stop → listening | Acked writes lost |
+| --- | ---: | ---: | ---: |
+| 1 | 1.2 s | 0.46 s | 0 |
+| 2 | 2.5 s | 0.18 s | 0 |
 
-Restoring before `/stop` moves the 9–12 s restore out of the downtime; the rest of the downtime is Cloud Run shifting traffic.
-No acknowledged write was lost in any run.
+The new revision restores while the old one still serves, so only the last changes are applied after `/stop`.
+The rest of the downtime is Cloud Run shifting traffic.
