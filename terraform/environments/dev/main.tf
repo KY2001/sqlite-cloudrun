@@ -41,10 +41,10 @@ module "server" {
   # Request Timeout
   request_timeout = "300"
 
-  # Startup Probe: 48 x 5s = 240s, the maximum, for stopping the old revision and restoring.
-  startup_probe_period_seconds    = 5
+  # Startup Probe: 60 x 1s = 60s for stopping the old revision and restoring.
+  startup_probe_period_seconds    = 1
   startup_probe_timeout_seconds   = 1
-  startup_probe_failure_threshold = 48
+  startup_probe_failure_threshold = 60
 
   # Replication
   gcs_bucket_name = "sqlite-cloudrun-dev"
