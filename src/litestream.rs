@@ -6,6 +6,8 @@ use std::{
 use tokio::process::{Child, Command};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
+// Covers the initial restore; the startup probe allows 60 seconds in total.
+const RESTORE_TIMEOUT: Duration = Duration::from_secs(30);
 const CATCH_UP_TIMEOUT: Duration = Duration::from_secs(10);
 
 // Restores the database from GCS while the old revision still serves, then calls `stop` and
@@ -17,34 +19,19 @@ pub async fn restore(path: &str, stop: impl Future<Output = ()>) {
     // Follow mode restores, then keeps applying new changes and writes the last applied TXID to
     // `<path>-txid`.
     let mut follower = Command::new("litestream")
-        .args([
-            "restore",
-            "-f",
-            "-follow-interval",
-            "100ms",
-            "-if-replica-exists",
-            path,
-        ])
+        .args(["restore", "-f", "-follow-interval", "100ms"])
+        .args(["-if-replica-exists", path])
         .kill_on_drop(true)
         .spawn()
         .expect("start litestream restore -f");
-    while followed_txid(path).is_none() && follower.try_wait().is_ok_and(|s| s.is_none()) {
-        tokio::time::sleep(POLL_INTERVAL).await;
-    }
+    catch_up(path, &mut follower, RESTORE_TIMEOUT).await;
 
     stop.await;
 
-    // The old revision has pushed its last changes, so the latest TXID in GCS is final.
-    let target = replica_txid(path).await;
-    let deadline = Instant::now() + CATCH_UP_TIMEOUT;
-    while followed_txid(path) < target
-        && follower.try_wait().is_ok_and(|s| s.is_none())
-        && Instant::now() < deadline
-    {
-        tokio::time::sleep(POLL_INTERVAL).await;
-    }
+    // The old revision has pushed its last changes, so only those are left to apply.
+    let caught_up = catch_up(path, &mut follower, CATCH_UP_TIMEOUT).await;
     let _ = follower.kill().await;
-    if target.is_none() || followed_txid(path) < target {
+    if !caught_up {
         println!("follow restore did not catch up; restoring from scratch");
         let _ = std::fs::remove_file(path);
     }
@@ -55,6 +42,21 @@ pub async fn restore(path: &str, stop: impl Future<Output = ()>) {
         .await
         .expect("run litestream restore");
     assert!(status.success(), "litestream restore: {status}");
+}
+
+// Waits until `restore -f` has applied the latest TXID in GCS. Returns whether it has.
+async fn catch_up(path: &str, follower: &mut Child, timeout: Duration) -> bool {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let target = replica_txid(path).await;
+        if target.is_some() && followed_txid(path) >= target {
+            return true;
+        }
+        if !follower.try_wait().is_ok_and(|status| status.is_none()) || Instant::now() > deadline {
+            return false;
+        }
+        tokio::time::sleep(POLL_INTERVAL).await;
+    }
 }
 
 // The last TXID `restore -f` has applied.
