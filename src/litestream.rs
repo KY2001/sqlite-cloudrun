@@ -6,7 +6,6 @@ use std::{
 use tokio::process::{Child, Command};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
-// Covers the initial restore; the startup probe allows 60 seconds in total.
 const RESTORE_TIMEOUT: Duration = Duration::from_secs(30);
 const CATCH_UP_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -16,8 +15,7 @@ pub async fn restore(path: &str, stop: impl Future<Output = ()>) {
     if std::env::var("LITESTREAM_SOCKET").is_err() {
         return stop.await; // Not running under Litestream (e.g. `make run`).
     }
-    // Follow mode restores, then keeps applying new changes and writes the last applied TXID to
-    // `<path>-txid`.
+    // Follow mode restores, then keeps applying new changes and writes the last applied TXID to `<path>-txid`.
     let mut follower = Command::new("litestream")
         .args(["restore", "-f", "-follow-interval", "100ms"])
         .args(["-if-replica-exists", path])
