@@ -1,18 +1,81 @@
-use std::time::Duration;
+use std::{
+    future::Future,
+    time::{Duration, Instant},
+};
 
 use tokio::process::{Child, Command};
 
-// Restores the database from GCS, if a replica exists.
-pub async fn restore(path: &str) {
+const POLL_INTERVAL: Duration = Duration::from_millis(100);
+const CATCH_UP_TIMEOUT: Duration = Duration::from_secs(10);
+
+// Restores the database from GCS while the old revision still serves, then calls `stop` and
+// applies only the changes made in the meantime. Falls back to a full restore.
+pub async fn restore(path: &str, stop: impl Future<Output = ()>) {
     if std::env::var("LITESTREAM_SOCKET").is_err() {
-        return; // Not running under Litestream (e.g. `make run`).
+        return stop.await; // Not running under Litestream (e.g. `make run`).
     }
+    // Follow mode restores, then keeps applying new changes and writes the last applied TXID to `<path>-txid`.
+    let mut follower = Command::new("litestream")
+        .args(["restore", "-f", "-follow-interval", "100ms"])
+        .args(["-if-replica-exists", path])
+        .kill_on_drop(true)
+        .spawn()
+        .expect("start litestream restore -f");
+    catch_up(path, &mut follower, None).await;
+
+    stop.await;
+
+    // The old revision has pushed its last changes, so only those are left to apply.
+    let caught_up = catch_up(path, &mut follower, Some(CATCH_UP_TIMEOUT)).await;
+    let _ = follower.kill().await;
+    if !caught_up {
+        println!("follow restore did not catch up; restoring from scratch");
+        let _ = std::fs::remove_file(path);
+    }
+
     let status = Command::new("litestream")
         .args(["restore", "-if-db-not-exists", "-if-replica-exists", path])
         .status()
         .await
         .expect("run litestream restore");
     assert!(status.success(), "litestream restore: {status}");
+}
+
+// Waits until `restore -f` has applied the latest TXID in GCS. Returns whether it has.
+async fn catch_up(path: &str, follower: &mut Child, timeout: Option<Duration>) -> bool {
+    let deadline = timeout.map(|timeout| Instant::now() + timeout);
+    loop {
+        let target = replica_txid(path).await;
+        if target.is_some() && followed_txid(path) >= target {
+            return true;
+        }
+        if !follower.try_wait().is_ok_and(|status| status.is_none())
+            || deadline.is_some_and(|deadline| Instant::now() > deadline)
+        {
+            return false;
+        }
+        tokio::time::sleep(POLL_INTERVAL).await;
+    }
+}
+
+// The last TXID `restore -f` has applied.
+fn followed_txid(path: &str) -> Option<u64> {
+    let txid = std::fs::read_to_string(format!("{path}-txid")).ok()?;
+    u64::from_str_radix(txid.trim(), 16).ok()
+}
+
+// The latest TXID in GCS. Litestream never deletes the newest level-0 file.
+async fn replica_txid(path: &str) -> Option<u64> {
+    let output = Command::new("litestream")
+        .args(["ltx", "-level", "0", "-json", path])
+        .output()
+        .await
+        .ok()?;
+    let files: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout).ok()?;
+    files
+        .iter()
+        .filter_map(|file| u64::from_str_radix(file["max_txid"].as_str()?, 16).ok())
+        .max()
 }
 
 // Starts replicating the database to GCS. Kill the returned process to stop replication.

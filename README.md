@@ -47,7 +47,7 @@ Basically No. On a normal shutdown, Cloud Run sends `SIGTERM` and the server syn
 Rarely. The uptime check calls `/sync` every five minutes, which keeps the instance warm.
 
 ### What happens on deploy?
-The new revision takes the database over before it starts serving. It calls `POST /stop`, which Cloud Run routes to the old revision; the old revision finishes in-flight queries, syncs to GCS and closes the database. The new revision then restores from GCS and starts serving.
+The new revision takes the database over before it starts serving. It restores from GCS while the old revision still serves, and keeps applying new changes. It then calls `POST /stop`, which Cloud Run routes to the old revision; the old revision finishes in-flight queries, syncs to GCS and closes the database. The new revision applies the last changes and starts serving.
 Requests during the handoff (a few seconds) get `503`; clients should retry.
 
 ## Benchmark

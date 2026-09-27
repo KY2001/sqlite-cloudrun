@@ -14,9 +14,8 @@ async fn main() {
     let path = std::env::var("DB_PATH").unwrap_or_else(|_| "/data/app.db".into());
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".into());
 
-    // Take the database over from the old revision before restoring it, so no changes are lost and only one instance replicates to GCS.
-    handoff::stop_serving_revision().await;
-    litestream::restore(&path).await;
+    // Take the database over from the old revision during the restore, so no changes are lost and only one instance replicates to GCS.
+    litestream::restore(&path, handoff::stop_serving_revision()).await;
     let server = Arc::new(api::Server {
         db: RwLock::new(Some(api::Database {
             pool: db::open(&path).await,
