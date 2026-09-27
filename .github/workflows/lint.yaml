@@ -11,4 +11,6 @@ jobs:
           cache: false
       - uses: terraform-linters/setup-tflint@v6
       - run: tflint --chdir=terraform/ --init
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - run: make lint
