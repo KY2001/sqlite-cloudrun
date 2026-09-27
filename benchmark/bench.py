@@ -33,12 +33,15 @@ class Client:
         self.conn = None
 
     def sql(self, statements):
+        return self.request("POST", "/sql", json.dumps(statements))
+
+    def request(self, method, path, body=None):
         """Returns (HTTP status or 0 on a connection error, server time in seconds, response body)."""
         if self.conn is None:
             cls = http.client.HTTPSConnection if self.url.scheme == "https" else http.client.HTTPConnection
             self.conn = cls(self.url.netloc, timeout=10)
         try:
-            self.conn.request("POST", "/sql", json.dumps(statements), {"Content-Type": "application/json"})
+            self.conn.request(method, path, body, {"Content-Type": "application/json"})
             response = self.conn.getresponse()
             body = response.read()
         except (OSError, http.client.HTTPException):
@@ -71,12 +74,19 @@ def percentiles(latencies):
 
 def latency(url, n):
     client = Client(url)
-    print(f"{'query':<8} {'p50 ms':>7} {'p90 ms':>7} {'p99 ms':>7}")
-    for name, statements in [("SELECT 1", NOOP), ("read", READ), ("write", WRITE)]:
+    requests = [
+        ("SELECT 1", lambda: client.sql(NOOP())),
+        ("read", lambda: client.sql(READ())),
+        ("write", lambda: client.sql(WRITE())),
+        ("/health", lambda: client.request("GET", "/health")),
+        ("/sync", lambda: client.request("POST", "/sync")),
+    ]
+    print(f"{'request':<8} {'p50 ms':>7} {'p90 ms':>7} {'p99 ms':>7}")
+    for name, request in requests:
         for _ in range(10):  # Warm up the connection.
-            client.sql(statements())
-        results = [client.sql(statements()) for _ in range(n)]
-        assert all(status == 200 for status, _, _ in results), name
+            request()
+        results = [request() for _ in range(n)]
+        assert all(status in (200, 204) for status, _, _ in results), name
         p50, p90, p99 = percentiles([seconds for _, seconds, _ in results])
         print(f"{name:<8} {ms(p50)} {ms(p90)} {ms(p99)}")
 
