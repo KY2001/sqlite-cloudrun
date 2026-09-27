@@ -1,6 +1,7 @@
 /target
 /data
 .env*
+credentials
 AGENTS.md
 **/.terraform/
 **/*.tfstate
