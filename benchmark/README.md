@@ -81,5 +81,8 @@ Restore is measured from `stopped the serving revision` to `listening on` in the
 | Next 4, after a throughput run | 410 | 4.4 MB | 6–8 s |
 | The 3 above, after two more throughput runs | 624 | 8.5 MB | 13–16 s |
 
-Most of the new files are level-0 LTX files (340 of 624).
-Why they aren't compacted away has not been investigated.
+Most of the new files are level-0 LTX files (340 of 624), and every compacted file covers a single transaction.
+The cause is a Litestream bug in the GCS client, still present in v0.5.17 and on `main` ([#1262](https://github.com/benbjohnson/litestream/issues/1262), fix in [#1269](https://github.com/benbjohnson/litestream/pull/1269), not merged).
+`LTXFiles` uses the seek TXID as a name prefix instead of a start offset, so each compaction run merges only one file.
+Level 1 advances one transaction every 30 seconds, level-0 files are never cleaned up, and a restore downloads every file since the last daily snapshot.
+A local `litestream restore` of this 2 MB database fetches 417 files and takes 15–17 s, so the slowdown isn't specific to Cloud Run.
