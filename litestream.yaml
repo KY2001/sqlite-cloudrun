@@ -5,8 +5,10 @@ dbs:
 
 # Restore starts from the latest snapshot. Litestream's GCS client compacts only one file per run
 # (https://github.com/benbjohnson/litestream/issues/1262), so frequent snapshots keep restores fast.
+# Retention also deletes the LTX files older than the oldest snapshot, which compaction leaves behind.
 snapshot:
   interval: 1h
+  retention: 2h
 
 socket:
   enabled: true
