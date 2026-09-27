@@ -3,6 +3,7 @@ use std::time::Instant;
 use axum::{
     body::{Body, Bytes},
     extract::{FromRequest, Request},
+    http::HeaderValue,
     middleware::Next,
     response::{IntoResponse, Response},
 };
@@ -17,7 +18,7 @@ pub async fn log_request(request: Request, next: Next) -> Response {
     let uri = request.uri().to_string();
 
     let (parts, body) = request.into_parts();
-    let (request_body, response) =
+    let (request_body, mut response) =
         match Bytes::from_request(Request::from_parts(parts.clone(), body), &()).await {
             Ok(body) => {
                 let request_body = truncate(&String::from_utf8_lossy(&body));
@@ -47,6 +48,11 @@ pub async fn log_request(request: Request, next: Next) -> Response {
         })
     );
 
+    // Lets clients tell server time from network time.
+    let timing = format!("app;dur={:.3}", latency.as_secs_f64() * 1000.0);
+    response
+        .headers_mut()
+        .insert("server-timing", HeaderValue::from_str(&timing).unwrap());
     response
 }
 

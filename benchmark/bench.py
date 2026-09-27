@@ -5,6 +5,7 @@
   bench.py throughput URL              # concurrent requests for a fixed duration
   bench.py handoff URL -- COMMAND...   # writes continuously while COMMAND deploys a new revision
 
+Latencies are the server's own time from the Server-Timing header, so they exclude the network.
 Uses only the standard library. Drops and recreates a table named `bench`.
 """
 
@@ -32,20 +33,21 @@ class Client:
         self.conn = None
 
     def sql(self, statements):
-        """Returns (HTTP status or 0 on a connection error, latency in seconds, response body)."""
+        """Returns (HTTP status or 0 on a connection error, server time in seconds, response body)."""
         if self.conn is None:
             cls = http.client.HTTPSConnection if self.url.scheme == "https" else http.client.HTTPConnection
             self.conn = cls(self.url.netloc, timeout=10)
-        start = time.perf_counter()
         try:
             self.conn.request("POST", "/sql", json.dumps(statements), {"Content-Type": "application/json"})
             response = self.conn.getresponse()
             body = response.read()
-            return response.status, time.perf_counter() - start, body
         except (OSError, http.client.HTTPException):
             self.conn.close()
             self.conn = None
-            return 0, time.perf_counter() - start, b""
+            return 0, float("nan"), b""
+        # Server-Timing: app;dur=<milliseconds>
+        timing = response.getheader("Server-Timing", "dur=nan")
+        return response.status, float(timing.split("dur=")[1]) / 1000, body
 
 
 def setup(url):
@@ -59,7 +61,7 @@ def setup(url):
 
 
 def ms(seconds):
-    return f"{seconds * 1000:7.1f}"
+    return f"{seconds * 1000:7.2f}"
 
 
 def percentiles(latencies):
@@ -80,7 +82,7 @@ def latency(url, n):
 
 
 def load(url, statements, concurrency, duration):
-    """Runs `concurrency` clients for `duration` seconds and returns [(status, latency)]."""
+    """Runs `concurrency` clients for `duration` seconds and returns [(status, server time)]."""
     results = []
     ready = threading.Barrier(concurrency + 1)
     deadline = [0.0]
