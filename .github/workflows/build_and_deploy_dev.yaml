@@ -26,7 +26,7 @@ jobs:
           install_components: beta
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.15.x
+          terraform_version: 1.16.x
           terraform_wrapper: false
       - name: Terraform apply
         working-directory: terraform/environments/dev
