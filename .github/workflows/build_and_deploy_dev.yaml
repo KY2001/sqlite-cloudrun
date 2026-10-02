@@ -24,7 +24,7 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v3
         with:
           install_components: beta
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.15.x
           terraform_wrapper: false
