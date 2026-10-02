@@ -14,7 +14,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@v10.2.0
       - name: Generate Renovate GitHub App token
         id: renovate-token
         uses: actions/create-github-app-token@v3
