@@ -2,7 +2,7 @@
 # check=error=true
 
 # For building the binary
-FROM rust:1.98.1-slim-bookworm AS build
+FROM rust:1.99.0-slim-bookworm AS build
 WORKDIR /build
 RUN mkdir /data
 COPY Cargo.toml Cargo.lock ./
