@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-trait = "0.1"
-axum = "0.8"
-axum-extra = { version = "0.10", features = ["cookie"] }
+async-trait = "0.1.92"
+axum = "0.8.9"
+axum-extra = { version = "0.12.6", features = ["cookie"] }
 deadpool-sqlite = "0.14"
 openapi = { path = "openapi" }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
-rusqlite = { version = "0.40", features = ["bundled", "column_decltype", "hooks"] }
-serde_json = "1"
-tokio = { version = "1", features = ["macros", "process", "rt-multi-thread", "signal", "sync", "time"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls-tls"] }
+rusqlite = { version = "0.40.2", features = ["bundled", "column_decltype", "hooks"] }
+serde_json = "1.0.151"
+tokio = { version = "1.53.2", features = ["macros", "process", "rt-multi-thread", "signal", "sync", "time"] }
