@@ -15,12 +15,19 @@
       "groupName": "github-actions"
     },
     {
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["terraform"],
+      "groupName": "terraform",
+      "separateMajorMinor": false
+    },
+    {
       "matchManagers": ["dockerfile"],
       "groupName": "dockerfile"
     },
     {
       "matchManagers": ["terraform"],
-      "groupName": "terraform"
+      "groupName": "terraform",
+      "separateMajorMinor": false
     },
     {
       "matchUpdateTypes": ["major"],
