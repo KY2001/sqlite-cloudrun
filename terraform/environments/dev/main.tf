@@ -49,6 +49,6 @@ module "server" {
   # Replication
   gcs_bucket_name = "sqlite-cloudrun-dev"
 
-  # Uptime Check
-  uptime_check_period = "300s"
+  # Sync: every minute, which bounds the writes a crash can lose
+  sync_schedule = "* * * * *"
 }

@@ -108,7 +108,7 @@ pub async fn healthy() -> bool {
     matches!(output, Ok(Ok(output)) if output.status.success())
 }
 
-// An uptime check calls /sync every five minutes to push pending changes to GCS.
+// A Cloud Scheduler job calls /sync every minute to push pending changes to GCS.
 pub async fn sync(path: &str) -> Result<(), String> {
     let Ok(socket) = std::env::var("LITESTREAM_SOCKET") else {
         return Ok(()); // Not running under Litestream (e.g. `make run`).
