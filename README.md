@@ -41,10 +41,11 @@ A request with two or more statements runs in a single `BEGIN IMMEDIATE` transac
 Yes. The service runs on a single instance (`--max-instances=1`), so every request sees the latest committed data.
 
 ### Can I lose data?
-Basically No. On a normal shutdown, Cloud Run sends `SIGTERM` and the server syncs to GCS before exiting. Recent writes can be lost if the instance crashes.
+Basically No. On a normal shutdown, Cloud Run sends `SIGTERM` and the server syncs to GCS before exiting.
+If the instance crashes, changes not yet in GCS are lost. With request-based billing Litestream gets CPU only while requests run, so a Cloud Scheduler job calls `/sync` every minute, which bounds the loss to about a minute. Call `/sync` after a write to make it durable right away.
 
 ### Are there cold starts?
-Rarely. A Cloud Scheduler job calls `/sync` every five minutes, which keeps the instance warm.
+Rarely. A Cloud Scheduler job calls `/sync` every minute, which keeps the instance warm.
 
 ### What happens on deploy?
 The new revision takes the database over before it starts serving. It restores from GCS while the old revision still serves, and keeps applying new changes. It then calls `POST /stop`, which Cloud Run routes to the old revision; the old revision finishes in-flight queries, syncs to GCS and closes the database. The new revision applies the last changes and starts serving.
