@@ -44,7 +44,7 @@ Yes. The service runs on a single instance (`--max-instances=1`), so every reque
 Basically No. On a normal shutdown, Cloud Run sends `SIGTERM` and the server syncs to GCS before exiting. Recent writes can be lost if the instance crashes.
 
 ### Are there cold starts?
-Rarely. The uptime check calls `/sync` every five minutes, which keeps the instance warm.
+Rarely. A Cloud Scheduler job calls `/sync` every five minutes, which keeps the instance warm.
 
 ### What happens on deploy?
 The new revision takes the database over before it starts serving. It restores from GCS while the old revision still serves, and keeps applying new changes. It then calls `POST /stop`, which Cloud Run routes to the old revision; the old revision finishes in-flight queries, syncs to GCS and closes the database. The new revision applies the last changes and starts serving.
