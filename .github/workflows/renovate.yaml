@@ -13,7 +13,7 @@ jobs:
           node-version: 24
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version-file: ".bun-version"
       - uses: astral-sh/setup-uv@v10.2.0
       - name: Generate Renovate GitHub App token
         id: renovate-token
