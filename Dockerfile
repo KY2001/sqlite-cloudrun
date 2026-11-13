@@ -2,7 +2,7 @@
 # check=error=true
 
 # For building the binary
-FROM rust:1.99.0-slim-bookworm AS build
+FROM rust:1.100.0-slim-bookworm AS build
 WORKDIR /build
 RUN mkdir /data
 COPY Cargo.toml Cargo.lock ./
@@ -12,7 +12,7 @@ RUN cargo build --release --locked
 
 # For deployment
 FROM gcr.io/distroless/cc-debian12:nonroot AS deploy
-COPY --from=litestream/litestream:0.5.17 /usr/local/bin/litestream /usr/local/bin/
+COPY --from=litestream/litestream:0.5.18 /usr/local/bin/litestream /usr/local/bin/
 COPY --from=build /build/target/release/sqlite-cloudrun /usr/local/bin/
 COPY --from=build --chown=65532:65532 /data /data
 COPY litestream.yaml /etc/litestream.yml
